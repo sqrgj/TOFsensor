@@ -4,9 +4,11 @@
 #include "stm32f0xx.h"
 #include <stdbool.h>
 
-#define I2C_SCL_pin		GPIO_Pin_9	
-#define I2C_SDA_pin		GPIO_Pin_10
-#define I2C_GPIO		GPIOA
+#define I2C_SCL_pin				GPIO_Pin_9	
+#define I2C_SDA_pin				GPIO_Pin_10
+#define I2C_GPIO				GPIOA
+#define I2C_SCL_PinSource		GPIO_PinSource9
+#define I2C_SDA_PinSource		GPIO_PinSource10
 
 #define I2C_TIMEOUT		60
 

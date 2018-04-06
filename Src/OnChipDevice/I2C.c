@@ -3,7 +3,7 @@
 
 /*******************************************************************************
 * Function Name  : I2C_DevInit
-* Description    : Initializes peripherals used by the I2C EEPROM driver.
+* Description    : Initializes peripherals used by the I2C Device driver.
 * Input          : None
 * Output         : None
 * Return         : None
@@ -14,8 +14,8 @@ void I2C_DevInit(void)
 	GPIO_InitTypeDef GPIO_InitStructure;
 	
 	/** I2C1 GPIO Configuration			 
-	PB8	 ------> I2C1_SCL		 
-	PB9	 ------> I2C1_SDA	*/	
+	PA9	 ------> I2C1_SCL		 
+	PA10	 ------> I2C1_SDA	*/	
 	/*Enable or disable the AHB peripheral clock */	
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);	/*Configure GPIO pin */
 	
@@ -28,8 +28,8 @@ void I2C_DevInit(void)
 	GPIO_Init(I2C_GPIO, &GPIO_InitStructure);
 	
 	/*Configure GPIO pin alternate function */	
-	GPIO_PinAFConfig(I2C_GPIO, GPIO_PinSource9, GPIO_AF_4);	
-	GPIO_PinAFConfig(I2C_GPIO, GPIO_PinSource10, GPIO_AF_4);
+	GPIO_PinAFConfig(I2C_GPIO, I2C_SCL_PinSource, GPIO_AF_4);	
+	GPIO_PinAFConfig(I2C_GPIO, I2C_SDA_PinSource, GPIO_AF_4);
 
 	RCC_I2CCLKConfig(RCC_I2C1CLK_SYSCLK);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
