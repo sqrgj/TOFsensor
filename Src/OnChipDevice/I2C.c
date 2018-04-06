@@ -1,4 +1,5 @@
 #include "I2C.h"
+#include <stdbool.h>
 
 /*******************************************************************************
 * Function Name  : I2C_DevInit
@@ -16,19 +17,19 @@ void I2C_DevInit(void)
 	PB8	 ------> I2C1_SCL		 
 	PB9	 ------> I2C1_SDA	*/	
 	/*Enable or disable the AHB peripheral clock */	
-	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOB, ENABLE);	/*Configure GPIO pin */
+	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_GPIOA, ENABLE);	/*Configure GPIO pin */
 	
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8|GPIO_Pin_9;	
+	GPIO_InitStructure.GPIO_Pin = I2C_SCL_pin | I2C_SDA_pin;	
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;	
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;	
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;	
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 	
-	GPIO_Init(GPIOB, &GPIO_InitStructure);
+	GPIO_Init(I2C_GPIO, &GPIO_InitStructure);
 	
 	/*Configure GPIO pin alternate function */	
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource8, GPIO_AF_1);	
-	GPIO_PinAFConfig(GPIOB, GPIO_PinSource9, GPIO_AF_1);
+	GPIO_PinAFConfig(I2C_GPIO, GPIO_PinSource9, GPIO_AF_4);	
+	GPIO_PinAFConfig(I2C_GPIO, GPIO_PinSource10, GPIO_AF_4);
 
 	RCC_I2CCLKConfig(RCC_I2C1CLK_SYSCLK);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_I2C1, ENABLE);
@@ -38,13 +39,14 @@ void I2C_DevInit(void)
 	I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
 	I2C_InitStructure.I2C_DigitalFilter = 0x01;
 	I2C_InitStructure.I2C_OwnAddress1=0x00;
-	//I2C_InitStructure.I2C_Timing = 0x40B22536;//100Khz
-	I2C_InitStructure.I2C_Timing =0x10950C27;//400Khz
+	//I2C_InitStructure.I2C_Timing = 0x10400BDB;//100Khz
+	I2C_InitStructure.I2C_Timing =0x0090174F;//400Khz
 	I2C_InitStructure.I2C_AnalogFilter = I2C_AnalogFilter_Enable;
 	
 	I2C_Init(I2C1, &I2C_InitStructure);	
 	I2C_Cmd(I2C1, ENABLE);
 	return;
+
 }
 
 /*******************************************************************************
@@ -56,11 +58,11 @@ void I2C_DevInit(void)
 *                  - WriteAddr : Device's internal address to write to.
 *                  - NumByteToWrite : number of bytes to write to the Device.
 * Output         : None
-* Return         : None
+* Return         : true of false
 *******************************************************************************/
-BOOLEAN  I2C_Write(INT8U DevAddr, INT8U RegAddr,INT8U* pBuffer, INT8U NumByteToWrite)
+bool  I2C_Write(uint8_t DevAddr, uint8_t RegAddr, uint8_t* pBuffer, uint8_t NumByteToWrite)
 {
-	INT16U timeout = I2C_TIMEOUT;
+	uint16_t timeout = I2C_TIMEOUT;
 	
 	/* While the bus is busy */
 	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) != RESET)
@@ -72,7 +74,7 @@ BOOLEAN  I2C_Write(INT8U DevAddr, INT8U RegAddr,INT8U* pBuffer, INT8U NumByteToW
 	}
 	
 	/* Send Touch address for write */	
-	I2C_TransferHandling(I2C1, (DevAddr<<1), 1, I2C_Reload_Mode, I2C_Generate_Start_Write);
+	I2C_TransferHandling(I2C1, DevAddr, 1, I2C_Reload_Mode, I2C_Generate_Start_Write);
 	
 	timeout = I2C_TIMEOUT;
 	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_TXIS)==RESET)
@@ -94,7 +96,7 @@ BOOLEAN  I2C_Write(INT8U DevAddr, INT8U RegAddr,INT8U* pBuffer, INT8U NumByteToW
 		}
 	}
 	
-	I2C_TransferHandling(I2C1, (DevAddr<<1), NumByteToWrite, I2C_AutoEnd_Mode, I2C_No_StartStop);
+	I2C_TransferHandling(I2C1, DevAddr, NumByteToWrite, I2C_AutoEnd_Mode, I2C_No_StartStop);
 	
 	/* While there is data to be written */
 	while(NumByteToWrite--)  
@@ -133,14 +135,14 @@ BOOLEAN  I2C_Write(INT8U DevAddr, INT8U RegAddr,INT8U* pBuffer, INT8U NumByteToW
 * Description    : Reads a block of data from the Device.
 * Input          : - pBuffer : pointer to the buffer that receives the data read 
 *                    from the Device.
-*                  - ReadAddr : EEPROM's internal address to read from.
+*                  - ReadAddr : Dev's internal register address to read from.
 *                  - NumByteToRead : number of bytes to read from the Device.
 * Output         : None
-* Return         : None
+* Return         : true or false 
 *******************************************************************************/
-BOOLEAN  I2C_Read(INT8U DevAddr, INT8U RegAddr, INT8U* pBuffer, INT8U NumByteToRead)
+bool  I2C_Read(uint8_t DevAddr, uint8_t RegAddr, uint8_t* pBuffer, uint8_t NumByteToRead)
 {  
-	INT16U timeout = 60;
+	uint16_t timeout = I2C_TIMEOUT;
 
 	/* While the bus is busy */
 	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_BUSY) != RESET)
@@ -152,7 +154,7 @@ BOOLEAN  I2C_Read(INT8U DevAddr, INT8U RegAddr, INT8U* pBuffer, INT8U NumByteToR
 	}
 
 	/* Generate start & wait event detection */
-	I2C_TransferHandling(I2C1, (DevAddr<<1), 1, I2C_SoftEnd_Mode, I2C_Generate_Start_Write);
+	I2C_TransferHandling(I2C1, DevAddr, 1, I2C_SoftEnd_Mode, I2C_Generate_Start_Write);
 
 
 	timeout = I2C_TIMEOUT;
@@ -176,7 +178,7 @@ BOOLEAN  I2C_Read(INT8U DevAddr, INT8U RegAddr, INT8U* pBuffer, INT8U NumByteToR
 	}
 
 	/* Send STRAT condition a second time */  
-	I2C_TransferHandling(I2C1, (DevAddr<<1), NumByteToRead,  I2C_AutoEnd_Mode, I2C_Generate_Start_Read);
+	I2C_TransferHandling(I2C1, DevAddr, NumByteToRead,  I2C_AutoEnd_Mode, I2C_Generate_Start_Read);
 	
 	/* While there is data to be read */
 	while(NumByteToRead)  
@@ -212,3 +214,4 @@ BOOLEAN  I2C_Read(INT8U DevAddr, INT8U RegAddr, INT8U* pBuffer, INT8U NumByteToR
 	}
 	return true;
 }
+
